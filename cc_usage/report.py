@@ -5,7 +5,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .pricing import PRICES_TABLE, _DEFAULT
+from . import pricing as _pricing
 
 
 # ── CSV ──────────────────────────────────────────────────────────────────────
@@ -73,6 +73,7 @@ def write_markdown(
     days: list[dict],
     models: list[dict],
     totals: dict,
+    prices_source: str | None = None,
 ) -> None:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
@@ -136,19 +137,26 @@ def write_markdown(
             f"{b['total_tokens']:,} | ${b['cost_usd']:.2f} |"
         )
 
+    prices_note = f"as of {_pricing.PRICES_AS_OF}"
+    if prices_source:
+        prices_note += f" · loaded from `{prices_source}`"
+    else:
+        prices_note += f" · override via `~/.config/cc-usage/prices.json` or `--prices FILE`"
+
     lines += [
         "",
-        "## Pricing Reference (USD per million tokens)",
+        f"## Pricing Reference (USD / million tokens, {prices_note})",
         "",
         "| Model | Input | Cache Write | Cache Read | Output |",
         "|-------|------:|------------:|-----------:|-------:|",
     ]
-    for prefix, r in PRICES_TABLE:
+    for prefix, r in _pricing.PRICES_TABLE:
         lines.append(
             f"| {prefix} | ${r['input']:.2f} | ${r['cache_write']:.2f} | ${r['cache_read']:.2f} | ${r['output']:.2f} |"
         )
+    d = _pricing._DEFAULT
     lines.append(
-        f"| *(default / unknown)* | ${_DEFAULT['input']:.2f} | ${_DEFAULT['cache_write']:.2f} | ${_DEFAULT['cache_read']:.2f} | ${_DEFAULT['output']:.2f} |"
+        f"| *(default / unknown)* | ${d['input']:.2f} | ${d['cache_write']:.2f} | ${d['cache_read']:.2f} | ${d['output']:.2f} |"
     )
 
     lines += [

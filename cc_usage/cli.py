@@ -7,6 +7,7 @@ from pathlib import Path
 from .detect import sessions_dir_for
 from .loader import load_rows
 from . import aggregate as agg
+from .pricing import load_user_prices
 from .report import write_csvs, write_json, write_markdown
 
 
@@ -40,6 +41,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Also write report.json alongside the CSVs.",
     )
     p.add_argument(
+        "--prices",
+        metavar="FILE",
+        help="JSON file with custom pricing (overrides built-in rates). "
+             "Auto-loaded from ~/.config/cc-usage/prices.json if present.",
+    )
+    p.add_argument(
         "--quiet", "-q",
         action="store_true",
         help="Suppress progress output.",
@@ -49,6 +56,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     args = build_parser().parse_args()
+
+    # ── load pricing ─────────────────────────────────────────────────────────
+    prices_file = Path(args.prices) if args.prices else None
+    prices_source = load_user_prices(prices_file)
+    if not args.quiet and prices_source:
+        print(f"Prices loaded from {prices_source}")
 
     # ── resolve sessions dir ─────────────────────────────────────────────────
     if args.sessions_dir:
@@ -106,7 +119,7 @@ def main() -> None:
 
     # ── write ────────────────────────────────────────────────────────────────
     write_csvs(out_dir, detail, sessions, days, models)
-    write_markdown(out_dir, sessions_dir, sessions, days, models, totals)
+    write_markdown(out_dir, sessions_dir, sessions, days, models, totals, prices_source)
     if args.json:
         write_json(out_dir, sessions, days, models, totals)
 
