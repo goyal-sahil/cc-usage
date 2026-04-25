@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cc-usage"
+version = "0.1.0"
+description = "Analyse Claude Code token usage from local JSONL session files"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["claude", "anthropic", "token", "usage", "cost"]
+
+[project.scripts]
+cc-usage = "cc_usage.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cc_usage*"]
