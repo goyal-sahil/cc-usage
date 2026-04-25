@@ -1,7 +1,7 @@
 """Aggregate raw rows into session / day / model buckets."""
 
 from collections import defaultdict
-from .pricing import token_cost
+from .pricing import get_rates, token_cost_bucket
 
 
 def _empty():
@@ -15,35 +15,35 @@ def _sum_bucket(rows: list[dict], key_fn) -> dict[str, dict]:
         if k not in buckets:
             buckets[k] = _empty()
         b = buckets[k]
-        b["input_tokens"] += r["input_tokens"]
-        b["cache_write_tokens"] += r["cache_write_tokens"]
-        b["cache_read_tokens"] += r["cache_read_tokens"]
-        b["output_tokens"] += r["output_tokens"]
-        b["web_searches"] += r["web_searches"]
-        b["web_fetches"] += r["web_fetches"]
-        b["api_calls"] += 1
-        b["_model"] = r["model"]
+        b["input_tokens"]          += r["input_tokens"]
+        b["cache_write_5m_tokens"] += r["cache_write_5m_tokens"]
+        b["cache_write_1h_tokens"] += r["cache_write_1h_tokens"]
+        b["cache_read_tokens"]     += r["cache_read_tokens"]
+        b["output_tokens"]         += r["output_tokens"]
+        b["web_searches"]          += r["web_searches"]
+        b["web_fetches"]           += r["web_fetches"]
+        b["api_calls"]             += 1
+        b["_model"]                 = r["model"]
     return {k: dict(v) for k, v in buckets.items()}
 
 
 def _enrich(bucket: dict, model: str | None = None) -> dict:
     m = model or bucket.pop("_model", "unknown")
     bucket["model"] = m
+    bucket["cache_write_tokens"] = bucket["cache_write_5m_tokens"] + bucket["cache_write_1h_tokens"]
     bucket["total_tokens"] = (
-        bucket["input_tokens"] + bucket["cache_write_tokens"] +
-        bucket["cache_read_tokens"] + bucket["output_tokens"]
+        bucket["input_tokens"] +
+        bucket["cache_write_tokens"] +
+        bucket["cache_read_tokens"] +
+        bucket["output_tokens"]
     )
-    bucket["cost_usd"] = round(
-        token_cost(bucket["input_tokens"], m, "input") +
-        token_cost(bucket["cache_write_tokens"], m, "cache_write") +
-        token_cost(bucket["cache_read_tokens"], m, "cache_read") +
-        token_cost(bucket["output_tokens"], m, "output"),
-        6,
-    )
+    bucket["cost_usd"] = round(token_cost_bucket(bucket, m), 6)
+
+    # Savings = what cache reads would have cost at full input rate minus actual rate
+    rates = get_rates(m)
+    cr = bucket["cache_read_tokens"]
     bucket["cache_savings_usd"] = round(
-        token_cost(bucket["cache_read_tokens"], m, "input") -
-        token_cost(bucket["cache_read_tokens"], m, "cache_read"),
-        6,
+        cr / 1e6 * (rates["input"] - rates["cache_read"]), 6
     )
     return bucket
 
@@ -84,6 +84,14 @@ def detail(rows: list[dict]) -> list[dict]:
     for r in rows:
         d = dict(r)
         d["api_calls"] = 1
-        _enrich(d, model=d["model"])
+        d["cache_write_tokens"] = d["cache_write_5m_tokens"] + d["cache_write_1h_tokens"]
+        d["total_tokens"] = (
+            d["input_tokens"] + d["cache_write_tokens"] +
+            d["cache_read_tokens"] + d["output_tokens"]
+        )
+        d["cost_usd"] = round(token_cost_bucket(d, d["model"]) * d.get("geo_multiplier", 1.0), 6)
+        rates = get_rates(d["model"])
+        cr = d["cache_read_tokens"]
+        d["cache_savings_usd"] = round(cr / 1e6 * (rates["input"] - rates["cache_read"]), 6)
         out.append(d)
     return out
