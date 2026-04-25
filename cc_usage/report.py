@@ -90,8 +90,8 @@ def write_markdown(
         f"| Cache read tokens | {totals['cache_read_tokens']:,} |",
         f"| Output tokens | {totals['output_tokens']:,} |",
         f"| **Total tokens** | **{totals['total_tokens']:,}** |",
-        f"| **Est. cost (USD)** | **${totals['cost_usd']:.4f}** |",
-        f"| Cache savings (est.) | ${totals['cache_savings_usd']:.4f} |",
+        f"| **Est. cost (USD)** | **${totals['cost_usd']:.2f}** |",
+        f"| Cache savings (est.) | ${totals['cache_savings_usd']:.2f} |",
         f"| Web searches | {totals['web_searches']:,} |",
         f"| Web fetches | {totals['web_fetches']:,} |",
         "",
@@ -104,7 +104,7 @@ def write_markdown(
         lines.append(
             f"| {b['model']} | {b['api_calls']:,} | {b['input_tokens']:,} | "
             f"{b['cache_write_tokens']:,} | {b['cache_read_tokens']:,} | "
-            f"{b['output_tokens']:,} | ${b['cost_usd']:.4f} |"
+            f"{b['output_tokens']:,} | ${b['cost_usd']:.2f} |"
         )
 
     lines += [
@@ -117,7 +117,7 @@ def write_markdown(
     for b in days:
         lines.append(
             f"| {b['date']} | {b['api_calls']:,} | {b['total_tokens']:,} | "
-            f"${b['cost_usd']:.4f} | ${b['cache_savings_usd']:.4f} |"
+            f"${b['cost_usd']:.2f} | ${b['cache_savings_usd']:.2f} |"
         )
 
     lines += [
@@ -131,7 +131,7 @@ def write_markdown(
         short = b["session_id"][:8] + "…"
         lines.append(
             f"| `{short}` | {b['date']} | {b['model']} | {b['api_calls']:,} | "
-            f"{b['total_tokens']:,} | ${b['cost_usd']:.4f} |"
+            f"{b['total_tokens']:,} | ${b['cost_usd']:.2f} |"
         )
 
     lines += [

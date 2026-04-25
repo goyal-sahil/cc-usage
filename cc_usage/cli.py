@@ -116,9 +116,9 @@ def main() -> None:
             files += "  report.json"
         print(f"\nOutput -> {out_dir}/")
         print(f"  {files}")
-        print(f"\nTotal cost (est.):  ${totals['cost_usd']:.4f}")
+        print(f"\nTotal cost (est.):  ${totals['cost_usd']:.2f}")
         print(f"Total tokens:       {totals['total_tokens']:,}")
-        print(f"Cache savings:      ${totals['cache_savings_usd']:.4f}")
+        print(f"Cache savings:      ${totals['cache_savings_usd']:.2f}")
 
 
 if __name__ == "__main__":
