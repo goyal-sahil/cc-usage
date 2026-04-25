@@ -5,6 +5,8 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .pricing import PRICES_TABLE, _DEFAULT
+
 
 # ── CSV ──────────────────────────────────────────────────────────────────────
 
@@ -133,6 +135,21 @@ def write_markdown(
             f"| `{short}` | {b['date']} | {b['model']} | {b['api_calls']:,} | "
             f"{b['total_tokens']:,} | ${b['cost_usd']:.2f} |"
         )
+
+    lines += [
+        "",
+        "## Pricing Reference (USD per million tokens)",
+        "",
+        "| Model | Input | Cache Write | Cache Read | Output |",
+        "|-------|------:|------------:|-----------:|-------:|",
+    ]
+    for prefix, r in PRICES_TABLE:
+        lines.append(
+            f"| {prefix} | ${r['input']:.2f} | ${r['cache_write']:.2f} | ${r['cache_read']:.2f} | ${r['output']:.2f} |"
+        )
+    lines.append(
+        f"| *(default / unknown)* | ${_DEFAULT['input']:.2f} | ${_DEFAULT['cache_write']:.2f} | ${_DEFAULT['cache_read']:.2f} | ${_DEFAULT['output']:.2f} |"
+    )
 
     lines += [
         "",
