@@ -13,6 +13,10 @@ def load_rows(sessions_dir: Path) -> list[dict]:
     Returns one dict per assistant API call that contains usage data.
     """
     rows = []
+    # Claude Code emits one JSONL entry per content block (thinking, text,
+    # tool_use, ...) but every entry carries the same response-level usage
+    # payload. Dedupe by message id so we count each API call exactly once.
+    seen_msg_ids: set[str] = set()
     for path in sorted(sessions_dir.glob("*.jsonl")):
         session_id = path.stem
         with open(path, encoding="utf-8", errors="replace") as f:
@@ -30,6 +34,11 @@ def load_rows(sessions_dir: Path) -> list[dict]:
                 usage = msg.get("usage")
                 if not usage:
                     continue
+                msg_id = msg.get("id")
+                if msg_id:
+                    if msg_id in seen_msg_ids:
+                        continue
+                    seen_msg_ids.add(msg_id)
 
                 # Cache creation tokens split by TTL (present in newer API responses)
                 cache_creation = usage.get("cache_creation", {})

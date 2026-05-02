@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from . import __version__
 from .detect import sessions_dir_for
 from .loader import load_rows
 from . import aggregate as agg
@@ -16,6 +17,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="cc-usage",
         description="Analyse Claude Code token usage from local JSONL session files.",
     )
+    p.add_argument("--version", action="version", version=f"cc-usage {__version__}")
     source = p.add_mutually_exclusive_group()
     source.add_argument(
         "--project", "-p",

@@ -4,12 +4,25 @@ from collections import defaultdict
 from .pricing import get_rates, token_cost_bucket
 
 
-def _empty():
-    return defaultdict(int)
+def _empty() -> dict:
+    b: dict = defaultdict(int)
+    b["cost_usd"] = 0.0
+    b["cache_savings_usd"] = 0.0
+    b["_models"] = set()
+    return b
+
+
+def _row_cost(r: dict) -> tuple[float, float]:
+    """Cost and cache-savings for a single row, using that row's own model and geo."""
+    m = r["model"]
+    rates = get_rates(m)
+    cost = token_cost_bucket(r, m) * r.get("geo_multiplier", 1.0)
+    savings = r["cache_read_tokens"] / 1e6 * (rates["input"] - rates["cache_read"])
+    return cost, savings
 
 
 def _sum_bucket(rows: list[dict], key_fn) -> dict[str, dict]:
-    buckets: dict[str, defaultdict] = {}
+    buckets: dict[str, dict] = {}
     for r in rows:
         k = key_fn(r)
         if k not in buckets:
@@ -23,13 +36,23 @@ def _sum_bucket(rows: list[dict], key_fn) -> dict[str, dict]:
         b["web_searches"]          += r["web_searches"]
         b["web_fetches"]           += r["web_fetches"]
         b["api_calls"]             += 1
-        b["_model"]                 = r["model"]
+        cost, savings = _row_cost(r)
+        b["cost_usd"]              += cost
+        b["cache_savings_usd"]     += savings
+        b["_models"].add(r["model"])
     return {k: dict(v) for k, v in buckets.items()}
 
 
 def _enrich(bucket: dict, model: str | None = None) -> dict:
-    m = model or bucket.pop("_model", "unknown")
-    bucket["model"] = m
+    models = bucket.pop("_models", set())
+    if model is not None:
+        bucket["model"] = model
+    elif len(models) == 1:
+        bucket["model"] = next(iter(models))
+    elif models:
+        bucket["model"] = "mixed"
+    else:
+        bucket["model"] = "unknown"
     bucket["cache_write_tokens"] = bucket["cache_write_5m_tokens"] + bucket["cache_write_1h_tokens"]
     bucket["total_tokens"] = (
         bucket["input_tokens"] +
@@ -37,14 +60,8 @@ def _enrich(bucket: dict, model: str | None = None) -> dict:
         bucket["cache_read_tokens"] +
         bucket["output_tokens"]
     )
-    bucket["cost_usd"] = round(token_cost_bucket(bucket, m), 6)
-
-    # Savings = what cache reads would have cost at full input rate minus actual rate
-    rates = get_rates(m)
-    cr = bucket["cache_read_tokens"]
-    bucket["cache_savings_usd"] = round(
-        cr / 1e6 * (rates["input"] - rates["cache_read"]), 6
-    )
+    bucket["cost_usd"] = round(bucket["cost_usd"], 6)
+    bucket["cache_savings_usd"] = round(bucket["cache_savings_usd"], 6)
     return bucket
 
 
